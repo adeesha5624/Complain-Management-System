@@ -1,77 +1,51 @@
-# Complain Management App
+# Member 2: Authentication System
 
-A simple complaint management system built with:
-- Go backend with PostgreSQL
-- Vue.js frontend
-- Docker Compose to run backend, frontend, and database together
+## 📌 Module Overview
+This module handles user login and authentication verification. It issues an authorization token required by all protected actions in the system.
 
-## Project Structure
+## 🔗 Connections & Dependencies
+- **Frontend Action**: Submitting the login form calls the `login()` method.
+- **API Route**: Hits `POST http://localhost:8080/api/auth/login` (Mounted by Member 6).
+- **Emits Token**: The received token is saved to the browser's `localStorage` and sent in the `Authorization` header for all requests made by **Member 3** (Add) and **Member 4** (Manage).
 
-- `backend/` - Go API server
-- `frontend/` - Vue.js single-page application
-- `database/` - PostgreSQL initialization script
-- `docker-compose.yml` - Docker Compose configuration
-- `.env` - environment variables for database and backend connection
+## 💻 Core Code Explanation
 
-## Features
-
-- Admin and user authentication
-- Complaint listing and creation
-- Admin-only complaint status update and deletion
-- Admin UI hides complaint submission form
-- PostgreSQL database seeded with demo complaints
-
-## Prerequisites
-
-- Docker Desktop
-- Docker Compose
-
-## Setup
-
-1. Copy `.env.example` to `.env` if needed, or create `.env` with values:
-
-```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=crm_db
-DATABASE_URL=postgres://postgres:postgres@db:5432/crm_db?sslmode=disable
+### 1. Backend Authentication Logic (`backend_auth.go`)
+Validates user credentials and issues a simple token representation containing their role.
+```go
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+    // ... parse request body ...
+    var user *User
+    if loginReq.Username == "admin" && loginReq.Password == "admin123" {
+        user = &User{ID: 1, Username: "admin", Role: "admin", Token: "admin:admin"}
+    } else if loginReq.Username == "user" && loginReq.Password == "user123" {
+        user = &User{ID: 2, Username: "user", Role: "user", Token: "user:user"}
+    }
+    // send back JSON object with the Token attached
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(user)
+}
 ```
 
-2. Build and start the application:
-
-```bash
-docker-compose up --build
+### 2. Frontend Login Function (`frontend_auth.vue`)
+This method makes a REST API request to the backend with the username and password. On success, it persists the user data.
+```javascript
+async login() {
+    const res = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            username: this.loginForm.username,
+            password: this.loginForm.password,
+        }),
+    });
+    if (res.ok) {
+        const user = await res.json();
+        this.currentUser = user; // updates the app's global state
+        localStorage.setItem("auth_token", user.token);
+    }
+}
 ```
 
-3. Open the frontend:
-
-- `http://localhost:3000`
-
-## Demo Credentials
-
-- Admin: `admin` / `admin123`
-- User: `user` / `user123`
-
-## Notes
-
-- Admin users can view and manage complaints but cannot submit new ones.
-- Regular users can submit complaints.
-- The backend uses a demo token format and is not production-ready.
-
-## Backend Dev Commands
-
-From `backend/`:
-
-```bash
-go build Main.go
-./Main
-```
-
-## Frontend Dev Commands
-
-From `frontend/`:
-
-```bash
-npm install
-npm run dev
-```
+## 🚀 Viva Presentation Notes
+During the viva, explain how state management is handled. Show that when a user logs in, their credentials determine their `role` (Admin vs User), which conditionally changes the frontend UI rendering. Highlight how the generated token is used in subsequent headers.
